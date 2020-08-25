@@ -1,9 +1,8 @@
 library connection_status_bar;
 
 import 'dart:async';
-import 'dart:io';
 
-import 'package:connectivity/connectivity.dart';
+import 'package:cross_connectivity/cross_connectivity.dart';
 import 'package:flutter/material.dart';
 
 class ConnectionStatusBar extends StatefulWidget {
@@ -36,7 +35,8 @@ class ConnectionStatusBar extends StatefulWidget {
   _ConnectionStatusBarState createState() => _ConnectionStatusBarState();
 }
 
-class _ConnectionStatusBarState extends State<ConnectionStatusBar> with SingleTickerProviderStateMixin {
+class _ConnectionStatusBarState extends State<ConnectionStatusBar>
+    with SingleTickerProviderStateMixin {
   StreamSubscription _connectionChangeStream;
   bool _hasConnection = true;
   AnimationController controller;
@@ -44,12 +44,15 @@ class _ConnectionStatusBarState extends State<ConnectionStatusBar> with SingleTi
 
   @override
   void initState() {
-    _ConnectionStatusSingleton connectionStatus = _ConnectionStatusSingleton.getInstance();
-    connectionStatus.initialize(widget.lookUpAddress);
-    _connectionChangeStream = connectionStatus.connectionChange.listen(_connectionChanged);
-    controller = AnimationController(vsync: this, duration: widget.animationDuration);
+    _ConnectionStatusSingleton connectionStatus =
+        _ConnectionStatusSingleton.getInstance();
+    _connectionChangeStream =
+        connectionStatus.connectionChange.listen(_connectionChanged);
+    controller =
+        AnimationController(vsync: this, duration: widget.animationDuration);
 
-    offset = Tween<Offset>(begin: widget.beginOffset, end: widget.endOffset).animate(controller);
+    offset = Tween<Offset>(begin: widget.beginOffset, end: widget.endOffset)
+        .animate(controller);
     super.initState();
   }
 
@@ -69,7 +72,9 @@ class _ConnectionStatusBarState extends State<ConnectionStatusBar> with SingleTi
           child: Container(
             color: widget.color,
             width: widget.width,
-            height: _hasConnection ? widget.height : widget.collapsedHeight ?? widget.height,
+            height: _hasConnection
+                ? widget.height
+                : widget.collapsedHeight ?? widget.height,
             child: Center(
               child: widget.title,
             ),
@@ -88,53 +93,17 @@ class _ConnectionStatusBarState extends State<ConnectionStatusBar> with SingleTi
 }
 
 class _ConnectionStatusSingleton {
-  String _lookUpAddress;
-  static final _ConnectionStatusSingleton _singleton = _ConnectionStatusSingleton._internal();
+  static final _ConnectionStatusSingleton _singleton =
+      _ConnectionStatusSingleton._internal();
   _ConnectionStatusSingleton._internal();
 
   static _ConnectionStatusSingleton getInstance() => _singleton;
 
-  bool hasConnection = true;
-
-  StreamController<bool> connectionChangeController = StreamController.broadcast();
-
   final Connectivity _connectivity = Connectivity();
 
-  void initialize(String lookUpAddress) {
-    this._lookUpAddress = lookUpAddress;
-    _connectivity.onConnectivityChanged.listen(_connectionChange);
-    checkConnection();
-  }
-
-  Stream<bool> get connectionChange => connectionChangeController.stream;
+  Stream<bool> get connectionChange => _connectivity.isConnected;
 
   void dispose() {
-    connectionChangeController.close();
-  }
-
-  void _connectionChange(ConnectivityResult result) {
-    checkConnection();
-  }
-
-  Future<bool> checkConnection() async {
-    assert(_lookUpAddress != null || _lookUpAddress != '');
-    bool previousConnection = hasConnection;
-
-    try {
-      final result = await InternetAddress.lookup(_lookUpAddress);
-      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-        hasConnection = true;
-      } else {
-        hasConnection = false;
-      }
-    } on SocketException catch (_) {
-      hasConnection = false;
-    }
-
-    if (previousConnection != hasConnection) {
-      connectionChangeController.add(hasConnection);
-    }
-
-    return hasConnection;
+    _connectivity.dispose();
   }
 }
